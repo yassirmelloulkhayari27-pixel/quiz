@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoQuest - Grand Quiz des Pays / Grote Landenquiz</title>
+    <!-- Tailwind CSS pour un design moderne et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at center, #1e1b4b 0%, #090d16 100%);
+            color: #f8fafc;
+        }
+        
+        /* Animation de pulsation douce pour le minuteur */
+        @keyframes pulse-timer {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        .timer-active {
+            animation: pulse-timer 1s infinite ease-in-out;
+        }
+
+        /* Animation d'apparition des questions */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans selection:bg-indigo-500/30">
+
+    <!-- Sélecteur de langue persistant dans le coin supérieur -->
+    <div class="fixed top-4 right-4 flex gap-2 z-50">
+        <button id="lang-fr-toggle" class="bg-slate-800/80 hover:bg-slate-700 text-white font-bold py-1 px-3 rounded-lg border border-slate-700 text-xs transition-all shadow-md">
+            FR 🇫🇷
+        </button>
+        <button id="lang-nl-toggle" class="bg-slate-800/80 hover:bg-slate-700 text-white font-bold py-1 px-3 rounded-lg border border-slate-700 text-xs transition-all shadow-md">
+            NL 🇳🇱
+        </button>
+    </div>
+
+    <!-- Conteneur principal du jeu -->
+    <div class="w-full max-w-2xl bg-slate-900/90 backdrop-blur-md rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-800/80 relative overflow-hidden">
+        
+        <!-- ÉCRAN D'ACCUEIL -->
+        <div id="start-screen" class="text-center py-6">
+            <div class="text-6xl mb-4 animate-bounce">🌍</div>
+            <h1 class="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent mb-3 tracking-wide">
+                GEOQUEST
+            </h1>
+            
+            <p id="welcome-text" class="text-slate-300 text-lg mb-8 max-w-md mx-auto">
+                Prêt à tester tes connaissances sur notre magnifique planète ? Relève le défi du grand quiz des pays du monde !
+            </p>
+            
+            <!-- Choix initial de la langue -->
+            <div class="flex justify-center gap-4 mb-8">
+                <button id="lang-fr-btn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-all shadow-md">
+                    <span>Français</span> 🇫🇷
+                </button>
+                <button id="lang-nl-btn" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 px-5 rounded-xl transition-all shadow-md">
+                    <span>Nederlands</span> 🇳🇱
+                </button>
+            </div>
+            
+            <button id="start-btn" class="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-400 hover:to-blue-500 text-white font-bold py-4 px-10 rounded-2xl shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 text-lg">
+                Commencer l'Aventure ! / Start het Avontuur!
+            </button>
+        </div>
+
+        <!-- ZONE DE JEU (Masquée au début) -->
+        <div id="quiz-screen" class="hidden">
+            <!-- Barre de progression et Score -->
+            <div class="flex justify-between items-center mb-6 text-sm text-slate-400 font-semibold">
+                <span><span id="label-question">Question</span> <span id="current-question-num" class="text-indigo-400">1</span> <span id="label-of">sur</span> <span id="total-questions-num">100</span></span>
+                <span class="bg-slate-800/60 px-3 py-1 rounded-full border border-slate-700"><span id="label-score">Score</span> : <span id="score" class="text-emerald-400 font-bold">0</span></span>
+            </div>
+
+            <!-- Barre visuelle de progression -->
+            <div class="w-full h-2 bg-slate-800 rounded-full mb-6 overflow-hidden">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-blue-500 w-0 transition-all duration-300"></div>
+            </div>
+
+            <!-- Question et Minuteur -->
+            <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 mb-6 relative">
+                <!-- Minuteur de question -->
+                <div class="absolute top-4 right-4 flex items-center gap-1 bg-slate-900/80 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-700" id="timer-badge">
+                    ⏱️ <span id="timer" class="text-amber-400">15</span>s
+                </div>
+                
+                <!-- Badge de catégorie de question -->
+                <div id="category-badge" class="inline-block text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">
+                    GÉOGRAPHIE
+                </div>
+                
+                <!-- Texte de la question -->
+                <h2 id="question-text" class="text-xl md:text-2xl font-bold leading-relaxed text-slate-100 pr-16">
+                    Chargement de la question...
+                </h2>
+            </div>
+
+            <!-- Liste des Options de Réponses -->
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                <!-- Les boutons de réponses seront injectés ici en JS -->
+            </div>
+
+            <!-- Section Explication (masquée jusqu'à validation de la réponse) -->
+            <div id="explanation-container" class="hidden animate-slide-in bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+                <div class="flex items-start gap-3">
+                    <span id="explanation-icon" class="text-2xl">💡</span>
+                    <div>
+                        <h4 id="label-did-you-know" class="font-bold text-slate-200 mb-1">Le savais-tu ?</h4>
+                        <p id="explanation-text" class="text-sm text-slate-300 leading-relaxed">
+                            Explication complémentaire sur la question...
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bouton pour continuer -->
+            <div class="flex justify-end">
+                <button id="next-btn" class="hidden bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md active:scale-95">
+                    Question Suivante →
+                </button>
+            </div>
+        </div>
+
+        <!-- ÉCRAN DE FIN (Masqué au début) -->
+        <div id="end-screen" class="hidden text-center py-6 animate-slide-in">
+            <div id="diploma-emoji" class="text-7xl mb-4">🏆</div>
+            <h2 id="label-finished" class="text-3xl font-extrabold text-slate-100 mb-2">Aventure Terminée !</h2>
+            <p class="text-indigo-400 font-bold text-xl mb-4" id="rank-title">Explorateur de Légende</p>
+            
+            <div class="bg-slate-800/50 rounded-2xl p-6 max-w-sm mx-auto mb-8 border border-slate-700">
+                <p id="label-final-score" class="text-slate-400 text-sm mb-1">Ton Score Final</p>
+                <p class="text-5xl font-black text-white mb-2"><span id="final-score" class="text-emerald-400">0</span> / 100</p>
+                <p class="text-xs text-slate-400" id="score-comment">Impressionnant ! Tu connais notre Terre comme ta poche !</p>
+            </div>
+
+            <button id="restart-btn" class="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-400 hover:to-blue-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95">
+                Recommencer une Partie / Opnieuw spelen
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Script de logique du jeu -->
+    <script>
+        // --- Traductions de l'Interface (Français & Néerlandais) ---
+        const uiText = {
+            fr: {
+                welcome: "Prêt à tester tes connaissances sur notre magnifique planète ? Relève le défi du grand quiz des pays du monde !",
+                startBtn: "Commencer l'Aventure !",
+                labelQuestion: "Question",
+                labelOf: "sur",
+                labelScore: "Score",
+                labelDidYouKnow: "Le savais-tu ?",
+                labelNext: "Question Suivante →",
+                labelFinished: "Aventure Terminée !",
+                labelFinalScore: "Ton Score Final",
+                labelRestart: "Recommencer une Partie",
+                timeOut: "Temps écoulé !",
+                ranks: [
+                    { min: 90, emoji: "👑", title: "Grand Maître de la Terre !", comment: "Exceptionnel ! Tu es un géographe hors pair, digne de guider les plus grands explorateurs." },
+                    { min: 75, emoji: "🏆", title: "Globe-Trotteur d'Élite", comment: "Fantastique ! Tu connais notre monde dans ses moindres recoins." },
+                    { min: 50, emoji: "🧭", title: "Navigateur chevronné", comment: "Très bon score ! Tu as une excellente culture générale géographique." },
+                    { min: 30, emoji: "🎒", title: "Jeune Aventurier", comment: "Pas mal du tout ! Continue d'apprendre pour perfectionner tes connaissances." },
+                    { min: 0, emoji: "🗺️", title: "Découvreur Débutant", comment: "Chaque grand voyage commence par un premier pas. Rejoue pour t'améliorer !" }
+                ]
+            },
+            nl: {
+                welcome: "Klaar om je kennis over onze prachtige planeet te testen? Ga de uitdaging aan met de grote landenquiz van de wereld!",
+                startBtn: "Start het Avontuur!",
+                labelQuestion: "Vraag",
+                labelOf: "van",
+                labelScore: "Score",
+                labelDidYouKnow: "Wist je dat?",
+                labelNext: "Volgende Vraag →",
+                labelFinished: "Avontuur Voltooid!",
+                labelFinalScore: "Je Eindscore",
+                labelRestart: "Opnieuw Spelen",
+                timeOut: "Tijd voorbij!",
+                ranks: [
+                    { min: 90, emoji: "👑", title: "Grootmeester van de Aarde!", comment: "Uitzonderlijk! Je bent een topgeograaf, waardig om de grootste ontdekkingsreizigers te leiden." },
+                    { min: 75, emoji: "🏆", title: "Elite Wereldreiziger", comment: "Fantastisch! Je kent onze wereld tot in de kleinste details." },
+                    { min: 50, emoji: "🧭", title: "Ervaren Navigator", comment: "Zeer goede score! Je hebt een uitstekende algemene kennis van geografie." },
+                    { min: 30, emoji: "🎒", title: "Jonge Avonturier", comment: "Helemaal niet slecht! Blijf leren om je kennis verder uit te breiden." },
+                    { min: 0, emoji: "🗺️", title: "Beginnende Ontdekker", comment: "Elke grote reis begint met een eerste stap. Speel nog eens om beter te worden!" }
+                ]
+            }
+        };
+
+        // --- Banque de 100 Questions Bilingues ---
+        const questions = [
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale officielle de l'Australie ?",
+                questionNl: "Wat is de officiële hoofdstad van Australië?",
+                optionsFr: ["Sydney", "Melbourne", "Canberra", "Brisbane"],
+                optionsNl: ["Sydney", "Melbourne", "Canberra", "Brisbane"],
+                answer: 2,
+                explanationFr: "Bien que Sydney et Melbourne soient les plus grandes villes, Canberra a été choisie comme capitale en 1908 comme compromis entre les deux rivales.",
+                explanationNl: "Hoewel Sydney en Melbourne de grootste steden zijn, werd Canberra in 1908 gekozen als hoofdstad als compromis tussen de twee rivalen."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays d'Amérique du Sud peut-on admirer la statue du Christ Rédempteur ?",
+                questionNl: "In welk Zuid-Amerikaans land kun je het standbeeld van Christus de Verlosser bewonderen?",
+                optionsFr: ["Le Brésil", "L'Argentine", "Le Pérou", "La Colombie"],
+                optionsNl: ["Brazilië", "Argentinië", "Peru", "Colombia"],
+                answer: 0,
+                explanationFr: "Cette célèbre statue monumentale de 38 mètres de haut surplombe la magnifique baie de Rio de Janeiro, au sommet du mont Corcovado au Brésil.",
+                explanationNl: "Dit beroemde monumentale standbeeld van 38 meter hoog kijkt uit over de prachtige baai van Rio de Janeiro, op de top van de Corcovado-berg in Brazilië."
+            },
+            {
+                categoryFr: "Culture & Langues", categoryNl: "Cultuur & Talen",
+                questionFr: "Quelle est la langue officielle la plus parlée au Brésil ?",
+                questionNl: "Wat is de meest gesproken officiële taal in Brazilië?",
+                optionsFr: ["L'espagnol", "Le portugais", "Le brésilien", "L'anglais"],
+                optionsNl: ["Spaans", "Portugees", "Braziliaans", "Engels"],
+                answer: 1,
+                explanationFr: "Le Brésil est le seul pays d'Amérique latine dont la langue officielle est le portugais, héritage historique de la colonisation portugaise.",
+                explanationNl: "Brazilië is het enige land in Latijns-Amerika waar Portugees de officiële taal is, een historisch erfgoed van de Portugese kolonisatie."
+            },
+            {
+                categoryFr: "Surnoms des Pays", categoryNl: "Bijnamen van Landen",
+                questionFr: "Quel pays asiatique est couramment surnommé « Le Pays du Soleil Levant » ?",
+                questionNl: "Welk Aziatisch land wordt in de volksmond 'Het Land van de Rijzende Zon' genoemd?",
+                optionsFr: ["La Chine", "La Corée du Sud", "Le Japon", "La Thaïlande"],
+                optionsNl: ["China", "Zuid-Korea", "Japan", "Thailand"],
+                answer: 2,
+                explanationFr: "Le nom officiel en japonais, 'Nihon', se traduit littéralement par 'origine du soleil', d'où ce poétique surnom géographique.",
+                explanationNl: "De officiële naam in het Japans, 'Nihon', vertaalt zich letterlijk als 'oorsprong van de zon', vandaar deze poëtische geografische bijnaam."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel est le plus grand pays du monde en termes de superficie territoriale ?",
+                questionNl: "Wat is het grootste land ter wereld qua landoppervlakte?",
+                optionsFr: ["Le Canada", "La Russie", "Les États-Unis", "La Chine"],
+                optionsNl: ["Canada", "Rusland", "Verenigde Staten", "China"],
+                answer: 1,
+                explanationFr: "Avec plus de 17 millions de kilomètres carrés, la Russie est si vaste qu'elle s'étend sur deux continents (l'Europe et l'Asie) et possède 11 fuseaux horaires !",
+                explanationNl: "Met meer dan 17 miljoen vierkante kilometer is Rusland zo groot dat het zich uitstrekt over twee continenten (Europa en Azië) en 11 tijdzones heeft!"
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays d'Asie peut-on visiter le majestueux Taj Mahal ?",
+                questionNl: "In welk Aziatisch land kun je de majestueuze Taj Mahal bezoeken?",
+                optionsFr: ["L'Inde", "Le Pakistan", "La Thaïlande", "Le Népal"],
+                optionsNl: ["India", "Pakistan", "Thailand", "Nepal"],
+                answer: 0,
+                explanationFr: "Situé à Agra en Inde, le Taj Mahal est un immense mausolée de marbre blanc construit au XVIIe siècle par l'empereur moghol Shah Jahan en mémoire de son épouse.",
+                explanationNl: "De Taj Mahal, gelegen in Agra in India, is een enorm wit marmeren mausoleum dat in de 17e eeuw werd gebouwd door de Mogol-keizer Shah Jahan ter nagedachtenis aan zijn vrouw."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel fleuve légendaire, considéré comme l'un des plus longs du monde, traverse toute l'Égypte ?",
+                questionNl: "Welke legendarische rivier, beschouwd als een van de langste ter wereld, stroomt door heel Egypte?",
+                optionsFr: ["L'Amazone", "Le Nil", "Le Mississippi", "Le Yangzi Jiang"],
+                optionsNl: ["Amazone", "Nijl", "Mississippi", "Yangtze"],
+                answer: 1,
+                explanationFr: "Le Nil a permis le développement de la brillante civilisation de l'Égypte antique grâce à ses crues fertiles régulières.",
+                explanationNl: "De Nijl maakte de ontwikkeling van de briljante beschaving van het oude Egypte mogelijk dankzij de regelmatige, vruchtbare overstromingen."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "Dans quel pays européen est née la célèbre et délicieuse Pizza Margherita ?",
+                questionNl: "In welk Europees land werd de beroemde en heerlijke Pizza Margherita geboren?",
+                optionsFr: ["La France", "L'Espagne", "L'Italie", "La Grèce"],
+                optionsNl: ["Frankrijk", "Spanje", "Italië", "Griekenland"],
+                answer: 2,
+                explanationFr: "Créée à Naples en 1889, elle arbore fièrement les trois couleurs du drapeau italien : rouge (tomate), blanc (mozzarella) et vert (basilic).",
+                explanationNl: "Gemaakt in Napels in 1889, toont het trots de drie kleuren van de Italiaanse vlag: rood (tomaat), wit (mozzarella) en groen (basilicum)."
+            },
+            {
+                categoryFr: "Surnoms des Pays", categoryNl: "Bijnamen van Landen",
+                questionFr: "Quel pays d'Afrique est surnommé la « Nation Arc-en-Ciel » en raison de sa diversité culturelle ?",
+                questionNl: "Welk Afrikaans land heeft de bijnaam 'Regenboognatie' vanwege zijn culturele diversiteit?",
+                optionsFr: ["Le Kenya", "L'Afrique du Sud", "Le Maroc", "Le Nigeria"],
+                optionsNl: ["Kenia", "Zuid-Afrika", "Marokko", "Nigeria"],
+                answer: 1,
+                explanationFr: "Ce surnom a été inventé par l'archevêque Desmond Tutu pour célébrer la réconciliation nationale et la grande variété de cultures et de peuples du pays.",
+                explanationNl: "Deze bijnaam werd bedacht door aartsbisschop Desmond Tutu om de nationale verzoening en de grote verscheidenheid aan culturen en volkeren in het land te vieren."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel pays européen est réputé pour ses magnifiques canaux, ses tulipes colorées et ses moulins à vent ?",
+                questionNl: "Welk Europees land staat bekend om zijn prachtige grachten, kleurrijke tulpen en windmolens?",
+                optionsFr: ["La Belgique", "La Suède", "Les Pays-Bas", "Le Danemark"],
+                optionsNl: ["België", "Zweden", "Nederland", "Denemarken"],
+                answer: 2,
+                explanationFr: "Environ un quart des Pays-Bas se trouve sous le niveau de la mer ! Ses habitants ont façonné le paysage à l'aide de digues et de moulins à vent pour pomper l'eau.",
+                explanationNl: "Ongeveer een kwart van Nederland ligt onder de zeespiegel! De bewoners hebben het landschap gevormd met dijken en windmolens om het water weg te pompen."
+            },
+            // Questions 11 - 100 ajoutées pour atteindre exactement 100 questions bilingues
+            {
+                categoryFr: "Symboles", categoryNl: "Symbolen",
+                questionFr: "Quel arbre produit la feuille rouge stylisée que l'on trouve sur le drapeau du Canada ?",
+                questionNl: "Welke boom produceert het gestileerde rode blad op de vlag van Canada?",
+                optionsFr: ["Le Chêne", "L'Érable", "Le Bouleau", "Le Pin"],
+                optionsNl: ["Eik", "Esdoorn (Maple)", "Berk", "Den"],
+                answer: 1,
+                explanationFr: "Le drapeau canadien arbore une feuille d'érable stylisée à 11 pointes. L'érable est un symbole national majeur du Canada.",
+                explanationNl: "De Canadese vlag toont een gestileerd esdoornblad met 11 punten. De esdoorn is een belangrijk nationaal symbool van Canada."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la France ?",
+                questionNl: "Wat is de hoofdstad van Frankrijk?",
+                optionsFr: ["Lyon", "Marseille", "Paris", "Bordeaux"],
+                optionsNl: ["Lyon", "Marseille", "Parijs", "Bordeaux"],
+                answer: 2,
+                explanationFr: "Paris est la capitale de la France, célèbre pour la Tour Eiffel, le Musée du Louvre et la Seine.",
+                explanationNl: "Parijs is de hoofdstad van Frankrijk, beroemd om de Eiffeltoren, het Louvre Museum en de Seine."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale des États-Unis ?",
+                questionNl: "Wat is de hoofdstad van de Verenigde Staten?",
+                optionsFr: ["New York", "Los Angeles", "Washington D.C.", "Chicago"],
+                optionsNl: ["New York", "Los Angeles", "Washington D.C.", "Chicago"],
+                answer: 2,
+                explanationFr: "Washington D.C. abrite la Maison Blanche, le Capitole et de nombreux mémoriaux nationaux importants.",
+                explanationNl: "Washington D.C. herbergt het Witte Huis, het Capitool en vele belangrijke nationale monumenten."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Italie ?",
+                questionNl: "Wat is de hoofdstad van Italië?",
+                optionsFr: ["Milan", "Rome", "Florence", "Venise"],
+                optionsNl: ["Milaan", "Rome", "Florence", "Venetië"],
+                answer: 1,
+                explanationFr: "Rome, la Ville Éternelle, abrite le Colisée, le Forum Romain et l'État du Vatican en son sein.",
+                explanationNl: "Rome, de Eeuwige Stad, herbergt het Colosseum, het Forum Romanum en de Vaticaanstad binnen haar grenzen."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Espagne ?",
+                questionNl: "Wat is de hoofdstad van Spanje?",
+                optionsFr: ["Barcelone", "Séville", "Valence", "Madrid"],
+                optionsNl: ["Barcelona", "Sevilla", "Valencia", "Madrid"],
+                answer: 3,
+                explanationFr: "Madrid est la capitale de l'Espagne, connue pour ses magnifiques places comme la Plaza Mayor et le Musée du Prado.",
+                explanationNl: "Madrid is de hoofdstad van Spanje, bekend om haar prachtige pleinen zoals de Plaza Mayor en het Prado Museum."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Allemagne ?",
+                questionNl: "Wat is de hoofdstad van Duitsland?",
+                optionsFr: ["Munich", "Francfort", "Berlin", "Hambourg"],
+                optionsNl: ["München", "Frankfurt", "Berlijn", "Hamburg"],
+                answer: 2,
+                explanationFr: "Berlin est la capitale allemande, célèbre pour la Porte de Brandebourg et les vestiges de son mur historique.",
+                explanationNl: "Berlijn is de Duitse hoofdstad, beroemd om de Brandenburger Tor en de overblijfselen van de historische muur."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Royaume-Uni ?",
+                questionNl: "Wat is de hoofdstad van het Verenigd Koninkrijk?",
+                optionsFr: ["Édimbourg", "Manchester", "Londres", "Belfast"],
+                optionsNl: ["Edinburgh", "Manchester", "Londen", "Belfast"],
+                answer: 2,
+                explanationFr: "Londres est la capitale britannique, traversée par la Tamise et réputée pour le palais de Buckingham.",
+                explanationNl: "Londen is de Britse hoofdstad, doorsneden door de Theems en bekend om Buckingham Palace."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays se trouve la Grande Muraille, longue de plusieurs milliers de kilomètres ?",
+                questionNl: "In welk land ligt de Grote Muur, die duizenden kilometers lang is?",
+                optionsFr: ["La Chine", "Le Japon", "L'Inde", "La Mongolie"],
+                optionsNl: ["China", "Japan", "India", "Mongolië"],
+                answer: 0,
+                explanationFr: "La Grande Muraille de Chine a été érigée pour protéger la frontière nord de l'Empire des invasions extérieures.",
+                explanationNl: "De Chinese Muur werd gebouwd om de noordelijke grens van het keizerrijk te beschermen tegen buitenlandse invasies."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays se trouvent les célèbres Pyramides de Gizeh ?",
+                questionNl: "In welk land liggen de beroemde Piramides van Gizeh?",
+                optionsFr: ["La Grèce", "Le Mexique", "L'Égypte", "L'Italie"],
+                optionsNl: ["Griekenland", "Mexico", "Egypte", "Italië"],
+                answer: 2,
+                explanationFr: "Les pyramides de Khéops, Khéphren et Mykérinos comptent parmi les structures les plus fascinantes de l'Antiquité.",
+                explanationNl: "De piramides van Cheops, Chefren en Mykerinos behoren tot de meest fascinerende structuren uit de oudheid."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays d'Amérique du Sud se trouve le site antique du Machu Picchu ?",
+                questionNl: "In welk Zuid-Amerikaans land ligt de oude site Machu Picchu?",
+                optionsFr: ["Le Chili", "La Bolivie", "Le Pérou", "L'Équateur"],
+                optionsNl: ["Chili", "Bolivia", "Peru", "Ecuador"],
+                answer: 2,
+                explanationFr: "Le Machu Picchu est une ancienne cité inca perchée dans les Andes péruviennes, redécouverte en 1911.",
+                explanationNl: "Machu Picchu is een oude Inca-stad genesteld in de Peruaanse Andes, herontdekt in 1911."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle ville peut-on admirer la Statue de la Liberté ?",
+                questionNl: "In welke stad kun je het Vrijheidsbeeld bewonderen?",
+                optionsFr: ["Paris", "Washington", "New York", "Boston"],
+                optionsNl: ["Parijs", "Washington", "New York", "Boston"],
+                answer: 2,
+                explanationFr: "La Statue de la Liberté a été offerte aux États-Unis par le peuple français en signe d'amitié entre les deux nations.",
+                explanationNl: "Het Vrijheidsbeeld werd door de Franse bevolking aan de Verenigde Staten geschonken als symbool van vriendschap tussen de twee naties."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays se trouve la célèbre Tour Eiffel ?",
+                questionNl: "In welk land staat de beroemde Eiffeltoren?",
+                optionsFr: ["L'Italie", "L'Espagne", "La France", "La Belgique"],
+                optionsNl: ["Italië", "Spanje", "Frankrijk", "België"],
+                answer: 2,
+                explanationFr: "La Tour Eiffel a été construite par Gustave Eiffel pour l'Exposition Universelle de Paris de 1889.",
+                explanationNl: "De Eiffeltoren werd gebouwd door Gustave Eiffel voor de Wereldtentoonstelling van Parijs in 1889."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Grèce ?",
+                questionNl: "Wat is de hoofdstad van Griekenland?",
+                optionsFr: ["Rome", "Athènes", "Sparte", "Thessalonique"],
+                optionsNl: ["Rome", "Athene", "Sparta", "Thessaloniki"],
+                answer: 1,
+                explanationFr: "Athènes est l'une des plus anciennes villes du monde, berceau de la démocratie et de la philosophie occidentale.",
+                explanationNl: "Athene is een van de oudste steden ter wereld, de bakermat van de democratie en de westerse filosofie."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Mexique ?",
+                questionNl: "Wat is de hoofdstad van Mexico?",
+                optionsFr: ["Cancun", "Guadalajara", "Mexico City", "Monterrey"],
+                optionsNl: ["Cancun", "Guadalajara", "Mexico-Stad", "Monterrey"],
+                answer: 2,
+                explanationFr: "Mexico City est bâtie sur les ruines de l'ancienne capitale aztèque de Tenochtitlan.",
+                explanationNl: "Mexico-Stad is gebouwd op de ruïnes van de oude Azteekse hoofdstad Tenochtitlan."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Japon ?",
+                questionNl: "Wat is de hoofdstad van Japan?",
+                optionsFr: ["Kyoto", "Osaka", "Tokyo", "Hiroshima"],
+                optionsNl: ["Kyoto", "Osaka", "Tokio", "Hiroshima"],
+                answer: 2,
+                explanationFr: "Tokyo est la plus grande zone métropolitaine du monde, alliant gratte-ciels ultra-modernes et temples anciens.",
+                explanationNl: "Tokio is het grootste grootstedelijke gebied ter wereld en combineert ultramoderne wolkenkrabbers met oude tempels."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Chine ?",
+                questionNl: "Wat is de hoofdstad van China?",
+                optionsFr: ["Shanghai", "Beijing (Pékin)", "Hong Kong", "Guangzhou"],
+                optionsNl: ["Shanghai", "Beijing (Peking)", "Hongkong", "Guangzhou"],
+                answer: 1,
+                explanationFr: "Beijing abrite la célèbre Cité Interdite, le cœur historique des anciennes dynasties impériales.",
+                explanationNl: "Beijing herbergt de beroemde Verboden Stad, het historische hart van de oude keizerlijke dynastieën."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Russie ?",
+                questionNl: "Wat is de hoofdstad van Rusland?",
+                optionsFr: ["Saint-Pétersbourg", "Sotchi", "Moscou", "Vladivostok"],
+                optionsNl: ["Sint-Petersburg", "Sotsji", "Moskou", "Vladivostok"],
+                answer: 2,
+                explanationFr: "Moscou abrite la place Rouge, la cathédrale Saint-Basile avec ses dômes colorés, et le Kremlin.",
+                explanationNl: "Moskou herbergt het Rode Plein, de Basiliuskathedraal met haar kleurrijke koepels, en het Kremlin."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Argentine ?",
+                questionNl: "Wat is de hoofdstad van Argentinië?",
+                optionsFr: ["Rio de Janeiro", "Santiago", "Buenos Aires", "Lima"],
+                optionsNl: ["Rio de Janeiro", "Santiago", "Buenos Aires", "Lima"],
+                answer: 2,
+                explanationFr: "Buenos Aires est réputée pour sa culture européenne, le tango passionné, et le quartier coloré de La Boca.",
+                explanationNl: "Buenos Aires staat bekend om haar Europese cultuur, de gepassioneerde tango, en de kleurrijke wijk La Boca."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Égypte ?",
+                questionNl: "Wat is de hoofdstad van Egypte?",
+                optionsFr: ["Alexandrie", "Louxor", "Le Caire", "Gizeh"],
+                optionsNl: ["Alexandrië", "Luxor", "Caïro", "Gizeh"],
+                answer: 2,
+                explanationFr: "Le Caire est la plus grande ville du monde arabe, idéalement située près des pyramides de Gizeh.",
+                explanationNl: "Caïro is de grootste stad van de Arabische wereld, ideaal gelegen nabij de piramides van Gizeh."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Kenya ?",
+                questionNl: "Wat is de hoofdstad van Kenia?",
+                optionsFr: ["Mombasa", "Nairobi", "Kisumu", "Nanyuki"],
+                optionsNl: ["Mombassa", "Nairobi", "Kisumu", "Nanyuki"],
+                answer: 1,
+                explanationFr: "Nairobi est la capitale du Kenya, célèbre pour son parc national de faune sauvage qui borde directement la ville.",
+                explanationNl: "Nairobi is de Keniaanse hoofdstad, beroemd om het wildpark dat direct aan de stad grenst."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale administrative de l'Afrique du Sud ?",
+                questionNl: "Wat is de administratieve hoofdstad van Zuid-Afrika?",
+                optionsFr: ["Le Cap", "Johannesbourg", "Pretoria", "Durban"],
+                optionsNl: ["Kaapstad", "Johannesburg", "Pretoria", "Durban"],
+                answer: 2,
+                explanationFr: "L'Afrique du Sud possède trois capitales : Pretoria (administrative), Le Cap (législative) et Bloemfontein (judiciaire).",
+                explanationNl: "Zuid-Afrika heeft drie hoofdsteden: Pretoria (administratief), Kaapstad (wetgevend) en Bloemfontein (rechterlijk)."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Thaïlande ?",
+                questionNl: "Wat is de hoofdstad van Thailand?",
+                optionsFr: ["Phuket", "Pattaya", "Bangkok", "Chiang Mai"],
+                optionsNl: ["Phuket", "Pattaya", "Bangkok", "Chiang Mai"],
+                answer: 2,
+                explanationFr: "Bangkok, connue localement sous le nom de Krung Thep, est réputée pour ses temples dorés comme le Wat Arun.",
+                explanationNl: "Bangkok, lokaal bekend als Krung Thep, staat bekend om haar gouden tempels zoals de Wat Arun."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Inde ?",
+                questionNl: "Wat is de hoofdstad van India?",
+                optionsFr: ["Mumbai", "New Delhi", "Calcutta", "Bangalore"],
+                optionsNl: ["Mumbai", "New Delhi", "Calcutta", "Bangalore"],
+                answer: 1,
+                explanationFr: "New Delhi est le siège du gouvernement indien, construite à côté de la ville historique de Delhi.",
+                explanationNl: "New Delhi is de zetel van de Indiase regering, gebouwd naast de historische stad Delhi."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Turquie ?",
+                questionNl: "Wat is de hoofdstad van Turkije?",
+                optionsFr: ["Istanbul", "Antalya", "Izmir", "Ankara"],
+                optionsNl: ["Istanboel", "Antalya", "Izmir", "Ankara"],
+                answer: 3,
+                explanationFr: "Bien qu'Istanbul soit la plus grande et la plus célèbre métropole, Ankara est la capitale de la Turquie moderne depuis 1923.",
+                explanationNl: "Hoewel Istanboel de grootste en beroemdste metropool is, is Ankara sinds 1923 de hoofdstad van het moderne Turkije."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Portugal ?",
+                questionNl: "Wat is de hoofdstad van Portugal?",
+                optionsFr: ["Porto", "Coimbra", "Faro", "Lisbonne"],
+                optionsNl: ["Porto", "Coimbra", "Faro", "Lissabon"],
+                answer: 3,
+                explanationFr: "Lisbonne est l'une des plus anciennes villes d'Europe occidentale, célèbre pour ses tramways jaunes historiques.",
+                explanationNl: "Lissabon is een van de oudste steden van West-Europa, beroemd om haar historische gele trams."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Suède ?",
+                questionNl: "Wat is de hoofdstad van Zweden?",
+                optionsFr: ["Göteborg", "Stockholm", "Malmö", "Uppsala"],
+                optionsNl: ["Göteborg", "Stockholm", "Malmö", "Uppsala"],
+                answer: 1,
+                explanationFr: "Stockholm est construite sur un archipel de 14 îles reliées par 57 ponts magnifiques.",
+                explanationNl: "Stockholm is gebouwd op een archipel van 14 eilanden die verbonden zijn door 57 prachtige bruggen."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Norvège ?",
+                questionNl: "Wat is de hoofdstad van Noorwegen?",
+                optionsFr: ["Bergen", "Trondheim", "Oslo", "Tromsø"],
+                optionsNl: ["Bergen", "Trondheim", "Oslo", "Tromsø"],
+                answer: 2,
+                explanationFr: "Oslo est la capitale norvégienne, réputée pour ses espaces verts, son musée de navires vikings et ses fjords environnants.",
+                explanationNl: "Oslo is de Noorse hoofdstad, bekend om haar groene ruimtes, haar vikingschipmuseum en de omliggende fjorden."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Finlande ?",
+                questionNl: "Wat is de hoofdstad van Finland?",
+                optionsFr: ["Tampere", "Turku", "Helsinki", "Rovaniemi"],
+                optionsNl: ["Tampere", "Turku", "Helsinki", "Rovaniemi"],
+                answer: 2,
+                explanationFr: "Helsinki est située sur la côte de la mer Baltique, réputée pour son architecture néo-classique épurée.",
+                explanationNl: "Helsinki ligt aan de kust van de Oostzee, bekend om haar strakke neoklassieke architectuur."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale du Danemark ?",
+                questionNl: "Wat is de hoofdstad van Denemarken?",
+                optionsFr: ["Aarhus", "Odense", "Copenhague", "Aalborg"],
+                optionsNl: ["Aarhus", "Odense", "Kopenhagen", "Aalborg"],
+                answer: 2,
+                explanationFr: "Copenhague abrite les célèbres jardins de Tivoli et la fameuse statue de la Petite Sirène.",
+                explanationNl: "Kopenhagen herbergt de beroemde Tivoli-tuinen en het bekende standbeeld van de Kleine Zeemeermin."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Suisse ?",
+                questionNl: "Wat is de hoofdstad van Zwitserland?",
+                optionsFr: ["Genève", "Zurich", "Berne", "Bâle"],
+                optionsNl: ["Genève", "Zürich", "Bern", "Bazel"],
+                answer: 2,
+                explanationFr: "Berne est la ville fédérale suisse. Sa vieille ville médiévale est classée au patrimoine mondial de l'UNESCO.",
+                explanationNl: "Bern is de Zwitserse bondsstad. De middeleeuwse oude stad staat op de Werelderfgoedlijst van UNESCO."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Autriche ?",
+                questionNl: "Wat is de hoofdstad van Oostenrijk?",
+                optionsFr: ["Salzbourg", "Innsbruck", "Vienne", "Graz"],
+                optionsNl: ["Salzburg", "Innsbruck", "Wenen", "Graz"],
+                answer: 2,
+                explanationFr: "Vienne est réputée pour son riche héritage musical classique (Mozart, Beethoven) et ses magnifiques palais impériaux.",
+                explanationNl: "Wenen staat bekend om haar rijke klassieke muzikale erfgoed (Mozart, Beethoven) en haar prachtige keizerlijke paleizen."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Belgique, également siège de nombreuses institutions européennes ?",
+                questionNl: "Wat is de hoofdstad van België, tevens de zetel van vele Europese instellingen?",
+                optionsFr: ["Anvers", "Bruxelles", "Gand", "Liège"],
+                optionsNl: ["Antwerpen", "Brussel", "Gent", "Luik"],
+                answer: 1,
+                explanationFr: "Bruxelles est la capitale de la Belgique et la capitale de fait de l'Union européenne.",
+                explanationNl: "Brussel is de hoofdstad van België en de de facto hoofdstad van de Europese Unie."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale officielle des Pays-Bas ?",
+                questionNl: "Wat is de officiële hoofdstad van Nederland?",
+                optionsFr: ["Rotterdam", "La Haye", "Amsterdam", "Utrecht"],
+                optionsNl: ["Rotterdam", "Den Haag", "Amsterdam", "Utrecht"],
+                answer: 2,
+                explanationFr: "Bien que le gouvernement siège à La Haye, Amsterdam est la capitale officielle de la constitution néerlandaise.",
+                explanationNl: "Hoewel de regering in Den Haag zetelt, is Amsterdam de officiële hoofdstad volgens de Nederlandse grondwet."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de l'Irlande ?",
+                questionNl: "Wat is de hoofdstad van Ierland?",
+                optionsFr: ["Belfast", "Cork", "Dublin", "Galway"],
+                optionsNl: ["Belfast", "Cork", "Dublin", "Galway"],
+                answer: 2,
+                explanationFr: "Dublin est la capitale irlandaise, réputée pour ses parcs littéraires et son château historique.",
+                explanationNl: "Dublin is de Ierse hoofdstad, bekend om haar literaire parken en historische kasteel."
+            },
+            {
+                categoryFr: "Capitales", categoryNl: "Hoofdsteden",
+                questionFr: "Quelle est la capitale de la Nouvelle-Zélande ?",
+                questionNl: "Wat is de hoofdstad van Nieuw-Zeeland?",
+                optionsFr: ["Auckland", "Christchurch", "Wellington", "Queenstown"],
+                optionsNl: ["Auckland", "Christchurch", "Wellington", "Queenstown"],
+                answer: 2,
+                explanationFr: "Wellington est la capitale la plus méridionale du monde, réputée pour sa vie culturelle animée et son vent fort.",
+                explanationNl: "Wellington is de meest zuidelijke hoofdstad ter wereld, bekend om haar bruisende culturele leven en sterke wind."
+            },
+            {
+                categoryFr: "Nature & Animaux", categoryNl: "Natuur & Dieren",
+                questionFr: "Quel mammifère unique et joueur ne se trouve à l'état sauvage que sur l'île de Madagascar ?",
+                questionNl: "Welk uniek en speels zoogdier komt in het wild alleen voor op het eiland Madagaskar?",
+                optionsFr: ["Le Kangourou", "Le Lémurien", "Le Panda", "Le Koala"],
+                optionsNl: ["Kangoeroe", "Maki (Lemuur)", "Panda", "Koala"],
+                answer: 1,
+                explanationFr: "Madagascar s'est séparée du continent africain il y a des millions d'années, permettant aux lémuriens d'y évoluer de façon isolée.",
+                explanationNl: "Madagaskar scheidde zich miljoenen jaren geleden af van het Afrikaanse continent, waardoor maki's zich daar in isolatie konden ontwikkelen."
+            },
+            {
+                categoryFr: "Nature & Animaux", categoryNl: "Natuur & Dieren",
+                questionFr: "Quel animal bondissant est le symbole emblématique de l'Australie ?",
+                questionNl: "Welk springend dier is het iconische symbool van Australië?",
+                optionsFr: ["Le Koala", "L'Émeu", "Le Kangourou", "Le Wombat"],
+                optionsNl: ["Koala", "Emoe", "Kangoeroe", "Wombat"],
+                answer: 2,
+                explanationFr: "Le kangourou ne peut pas reculer physiquement facilement, ce qui symbolise le progrès d'une nation qui va de l'avant.",
+                explanationNl: "De kangoeroe kan fysiek niet gemakkelijk achteruit lopen, wat symbool staat voor de vooruitgang van een land."
+            },
+            {
+                categoryFr: "Nature & Animaux", categoryNl: "Natuur & Dieren",
+                questionFr: "Quel ours mangeur de bambou est le trésor national et symbole de la Chine ?",
+                questionNl: "Welke bamboe-etende beer is de nationale schat en het symbool van China?",
+                optionsFr: ["Le Panda Géant", "L'Ours Brun", "Le Grizzly", "L'Ours Polaire"],
+                optionsNl: ["Reuzenpanda", "Bruine Beer", "Grizzlybeer", "IJsbeer"],
+                answer: 0,
+                explanationFr: "Le panda géant se nourrit presque exclusivement de bambou et fait l'objet d'un grand programme de conservation en Chine.",
+                explanationNl: "De reuzenpanda voedt zich bijna uitsluitend met bamboe en is het onderwerp van een groot beschermingsprogramma in China."
+            },
+            {
+                categoryFr: "Nature & Animaux", categoryNl: "Natuur & Dieren",
+                questionFr: "Quel camélidé des Andes est couramment utilisé au Pérou pour transporter des marchandises ?",
+                questionNl: "Welke kameelachtige uit de Andes wordt in Peru veel gebruikt om goederen te vervoeren?",
+                optionsFr: ["Le Chameau", "Le Dromadaire", "Le Lama", "L'Alpaga"],
+                optionsNl: ["Kameel", "Dromedaris", "Lama", "Alpaca"],
+                answer: 2,
+                explanationFr: "Le lama est parfaitement adapté à l'altitude des Andes et à ses chemins rocheux escarpés.",
+                explanationNl: "De lama is perfect aangepast aan de grote hoogte van de Andes en de steile, rotsachtige paden."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel fleuve sacré d'Inde est considéré comme une divinité par les hindous ?",
+                questionNl: "Welke heilige rivier in India wordt door hindoes als een godheid beschouwd?",
+                optionsFr: ["L'Indus", "Le Gange", "Le Brahmapoutre", "La Yamuna"],
+                optionsNl: ["Indus", "Ganges", "Brahmaputra", "Yamuna"],
+                answer: 1,
+                explanationFr: "Le Gange, long de plus de 2 500 km, est essentiel à la vie de millions de personnes vivant sur ses rives.",
+                explanationNl: "De Ganges, meer dan 2.500 km lang, is essentieel voor het leven van miljoenen mensen die langs de oevers wonen."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le plus long cours d'eau des États-Unis ?",
+                questionNl: "Wat is de langste rivier in de Verenigde Staten?",
+                optionsFr: ["Le Colorado", "L'Hudson", "Le Missouri", "Le Columbia"],
+                optionsNl: ["Colorado", "Hudson", "Missouri", "Columbia"],
+                answer: 2,
+                explanationFr: "Le Missouri est légèrement plus long que le Mississippi, dans lequel il se jette d'ailleurs.",
+                explanationNl: "De Missouri is iets langer dan de Mississippi, waar hij overigens in uitmondt."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel immense fleuve possède le débit d'eau le plus élevé de la planète ?",
+                questionNl: "Welke enorme rivier heeft het grootste waterdebiet op aarde?",
+                optionsFr: ["Le Nil", "L'Amazone", "Le Congo", "Le Danube"],
+                optionsNl: ["Nijl", "Amazone", "Congo", "Donau"],
+                answer: 1,
+                explanationFr: "L'Amazone déverse plus d'eau dans l'océan que les sept autres plus grands fleuves réunis !",
+                explanationNl: "De Amazone loost meer water in de oceaan dan de volgende zeven grootste rivieren samen!"
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le volcan actif le plus haut d'Europe, situé en Sicile (Italie) ?",
+                questionNl: "Wat is de hoogste actieve vulkaan van Europa, gelegen op Sicilië (Italië)?",
+                optionsFr: ["Le Vésuve", "L'Etna", "Le Stromboli", "Le Teide"],
+                optionsNl: ["Vesuvius", "Etna", "Stromboli", "Teide"],
+                answer: 1,
+                explanationFr: "L'Etna culmine à plus de 3 300 mètres d'altitude et gronde très régulièrement pour le plaisir des scientifiques.",
+                explanationNl: "De Etna is meer dan 3.300 meter hoog en barst zeer regelmatig uit, wat fascinerend is voor wetenschappers."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel célèbre mont volcanique au sommet enneigé est le point culminant du Japon ?",
+                questionNl: "Welke beroemde vulkanische berg met besneeuwde top is het hoogste punt van Japan?",
+                optionsFr: ["Le Mont Everest", "Le Mont Fuji", "Le Mont Blanc", "Le Mont McKinley"],
+                optionsNl: ["Mount Everest", "Mount Fuji", "Mont Blanc", "Mount McKinley"],
+                answer: 1,
+                explanationFr: "Le mont Fuji est un symbole artistique et spirituel sacré du Japon, escaladé par des milliers de personnes chaque année.",
+                explanationNl: "Mount Fuji is een heilig artistiek en spiritueel symbool van Japan, dat jaarlijks door duizenden mensen wordt beklommen."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quelle est la plus haute montagne du monde, située dans l'Himalaya ?",
+                questionNl: "Wat is de hoogste berg ter wereld, gelegen in de Himalaya?",
+                optionsFr: ["Le K2", "Le Mont Blanc", "Le Kilimandjaro", "Le Mont Everest"],
+                optionsNl: ["K2", "Mont Blanc", "Kilimanjaro", "Mount Everest"],
+                answer: 3,
+                explanationFr: "Le mont Everest culmine à 8 848 mètres d'altitude à la frontière entre le Népal et la Chine.",
+                explanationNl: "Mount Everest ligt op 8.848 meter hoogte op de grens tussen Nepal en China."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "Quel pays est mondialement réputé pour sa production de sirop d'érable ?",
+                questionNl: "Welk land staat wereldwijd bekend om de productie van esdoornsiroop (maple syrup)?",
+                optionsFr: ["Les États-Unis", "Le Canada", "La Suède", "Le Japon"],
+                optionsNl: ["Verenigde Staten", "Canada", "Zweden", "Japan"],
+                answer: 1,
+                explanationFr: "Le Canada (et particulièrement la province du Québec) produit environ 70% de la production mondiale de sirop d'érable.",
+                explanationNl: "Canada (en met name de provincie Quebec) produceert ongeveer 70% van de esdoornsiroop in de wereld."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "De quel pays l'art délicat du pliage de papier, l'origami, est-il originaire ?",
+                questionNl: "Uit welk land komt de delicate kunst van het papierplooien, origami?",
+                optionsFr: ["La Chine", "La Corée", "Le Japon", "Le Vietnam"],
+                optionsNl: ["China", "Korea", "Japan", "Vietnam"],
+                answer: 2,
+                explanationFr: "L'origami s'est développé au Japon, transformant une simple feuille de papier carrée en animaux et objets sans colle ni ciseaux.",
+                explanationNl: "Origami ontwikkelde zich in Japan en transformeert een eenvoudig vierkant vel papier in dieren en objecten zonder lijm of schaar."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "Dans quel pays européen est né le Flamenco, une danse passionnée accompagnée de guitare ?",
+                questionNl: "In welk Europees land ontstond de Flamenco, een gepassioneerde dans met gitaarbegeleiding?",
+                optionsFr: ["L'Italie", "L'Espagne", "La France", "Le Portugal"],
+                optionsNl: ["Italië", "Spanje", "Frankrijk", "Portugal"],
+                answer: 1,
+                explanationFr: "Le flamenco a pris racine en Andalousie, dans le sud de l'Espagne, mêlant chant, danse et musique de guitare.",
+                explanationNl: "Flamenco ontstond in Andalusië, in het zuiden van Spanje, en combineert zang, dans en gitaarmuziek."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "De quel pays sud-américain la célèbre danse du Tango est-elle originaire ?",
+                questionNl: "Uit welk Zuid-Amerikaans land komt de beroemde dans Tango?",
+                optionsFr: ["Le Brésil", "L'Argentine", "La Colombie", "Le Venezuela"],
+                optionsNl: ["Brazilië", "Argentinië", "Colombia", "Venezuela"],
+                answer: 1,
+                explanationFr: "Le tango est né à la fin du XIXe siècle dans les quartiers populaires de Buenos Aires en Argentine.",
+                explanationNl: "De tango ontstond aan het einde van de 19e eeuw in de volkswijken van Buenos Aires in Argentinië."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "Quel pays est célèbre dans le monde entier pour ses frites dorées croustillantes et ses chocolats d'exception ?",
+                questionNl: "Welk land is wereldwijd beroemd om zijn krokante goudgele frietjes en uitzonderlijke chocolade?",
+                optionsFr: ["La France", "L'Italie", "La Belgique", "L'Allemagne"],
+                optionsNl: ["Frankrijk", "Italië", "België", "Duitsland"],
+                answer: 2,
+                explanationFr: "La Belgique possède une longue tradition de chocolatiers d'exception et une culture unique des baraques à frites (frikot).",
+                explanationNl: "België heeft een lange traditionele geschiedenis van uitzonderlijke chocolatiers en een unieke cultuur van frituren."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel est le plus petit pays du monde en termes de superficie ?",
+                questionNl: "Wat is het kleinste land ter wereld qua oppervlakte?",
+                optionsFr: ["Monaco", "Le Vatican", "Saint-Marin", "Andorre"],
+                optionsNl: ["Monaco", "Vaticaanstad", "San Marino", "Andorra"],
+                answer: 1,
+                explanationFr: "Le Vatican, situé en plein cœur de Rome (Italie), s'étend sur seulement 0,44 kilomètre carré.",
+                explanationNl: "Vaticaanstad, gelegen in het hart van Rome (Italië), heeft een oppervlakte van slechts 0,44 vierkante kilometer."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel pays d'Europe compte le plus grand nombre d'îles sur son territoire ?",
+                questionNl: "Welk Europees land heeft het grootste aantal eilanden binnen zijn grondgebied?",
+                optionsFr: ["La Grèce", "La Suède", "La Norvège", "La Finlande"],
+                optionsNl: ["Griekenland", "Zweden", "Noorwegen", "Finland"],
+                answer: 1,
+                explanationFr: "La Suède possède plus de 267 000 îles, dont une grande partie sont très petites et inhabitées.",
+                explanationNl: "Zweden heeft meer dan 267.000 eilanden, waarvan de meeste erg klein en onbewoond zijn."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel continent de la Terre n'abrite aucun pays souverain permanent ?",
+                questionNl: "Welk continent op aarde herbergt geen permanente soevereine landen?",
+                optionsFr: ["L'Australie", "L'Antarctique", "L'Afrique", "L'Asie"],
+                optionsNl: ["Australië", "Antarctica", "Afrika", "Azië"],
+                answer: 1,
+                explanationFr: "L'Antarctique est protégé par un traité international qui le réserve uniquement à la recherche scientifique pacifique.",
+                explanationNl: "Antarctica wordt beschermd door een internationaal verdrag dat het uitsluitend reserveert voor vreedzaam wetenschappelijk onderzoek."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel pays insulaire d'Europe est connu pour ses geysers, ses glaciers et ses volcans actifs ?",
+                questionNl: "Welk Europees eilandenland staat bekend om zijn geisers, gletsjers en actieve vulkanen?",
+                optionsFr: ["L'Irlande", "Le Royaume-Uni", "L'Islande", "Le Groenland"],
+                optionsNl: ["Ierland", "Verenigd Koninkrijk", "IJsland", "Groenland"],
+                answer: 2,
+                explanationFr: "L'Islande utilise la géothermie naturelle de son sol volcanique chaud pour chauffer la majorité de ses habitations.",
+                explanationNl: "IJsland gebruikt de natuurlijke geothermische energie van haar vulkanische bodem om de meeste huizen te verwarmen."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Quel pays d'Afrique abrite en fait plus de pyramides antiques que l'Égypte elle-même ?",
+                questionNl: "Welk Afrikaans land herbergt eigenlijk meer oude piramides dan Egypte zelf?",
+                optionsFr: ["La Libye", "Le Soudan", "Le Kenya", "L'Éthiopie"],
+                optionsNl: ["Libië", "Soedan", "Kenia", "Ethiopië"],
+                answer: 1,
+                explanationFr: "Le Soudan possède plus de 200 pyramides nubiennes construites à l'époque du Royaume de Koush, contre environ 120 en Égypte.",
+                explanationNl: "Soedan heeft meer dan 200 Nubische piramides gebouwd tijdens het Koninkrijk Koesj, vergeleken met ongeveer 120 in Egypte."
+            },
+            {
+                categoryFr: "Nature & Animaux", categoryNl: "Natuur & Dieren",
+                questionFr: "Quel oiseau incapable de voler est l'emblème national et le surnom amical des habitants de Nouvelle-Zélande ?",
+                questionNl: "Welke loopvogel die niet kan vliegen is het nationale symbool en de bijnaam van de inwoners van Nieuw-Zeeland?",
+                optionsFr: ["Le Pingouin", "Le Kiwi", "L'Autruche", "Le Cacatoès"],
+                optionsNl: ["Pinguïn", "Kiwi", "Struisvogel", "Kaketoe"],
+                answer: 1,
+                explanationFr: "Le kiwi est un petit oiseau nocturne timide avec de longs poils duveteux, unique à la Nouvelle-Zélande.",
+                explanationNl: "De kiwi is een kleine, schuwe nachtvogel met lange donsachtige veren, uniek voor Nieuw-Zeeland."
+            },
+            {
+                categoryFr: "Gastronomie & Culture", categoryNl: "Gastronomie & Cultuur",
+                questionFr: "De quel pays d'Amérique latine est originaire le Chocolat, cultivé par les Mayas et Aztèques ?",
+                questionNl: "Uit welk Latijns-Amerikaans land komt chocolade, oorspronkelijk verbouwd door de Maya's en Azteken?",
+                optionsFr: ["Le Brésil", "Le Mexique", "Le Pérou", "La Colombie"],
+                optionsNl: ["Brazilië", "Mexico", "Peru", "Colombia"],
+                answer: 1,
+                explanationFr: "Les civilisations précolombiennes consommaient le cacao sous forme de boisson amère épicée appelée xocoatl.",
+                explanationNl: "De precolombiaanse beschavingen dronken cacao als een bittere, gekruide drank genaamd xocoatl."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le continent le plus venteux et le plus froid de la planète ?",
+                questionNl: "Wat is het koudste en meest winderige continent op aarde?",
+                optionsFr: ["L'Europe", "L'Asie", "L'Antarctique", "L'Amérique du Nord"],
+                optionsNl: ["Europa", "Azië", "Antarctica", "Noord-Amerika"],
+                answer: 2,
+                explanationFr: "L'Antarctique enregistre régulièrement les températures les plus extrêmes du monde, descendant sous les -80°C.",
+                explanationNl: "Op Antarctica worden regelmatig de meest extreme temperaturen ter wereld gemeten, soms onder de -80°C."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le lac naturel le plus profond de la Terre, situé en Sibérie (Russie) ?",
+                questionNl: "Wat is het diepste natuurlijke meer op aarde, gelegen in Siberië (Rusland)?",
+                optionsFr: ["Le Lac Supérieur", "Le Lac Baïkal", "Le Lac Victoria", "Le Lac Léman"],
+                optionsNl: ["Bovenmeer (Lake Superior)", "Baikalmeer", "Victoriameer", "Meer van Genève"],
+                answer: 1,
+                explanationFr: "Le lac Baïkal contient environ 20% de l'eau douce de surface non gelée de toute notre planète !",
+                explanationNl: "Het Baikalmeer bevat ongeveer 20% van het niet-bevroren zoetwater aan de oppervlakte van onze hele planeet!"
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le plus grand désert chaud du monde ?",
+                questionNl: "Wat is de grootste warme woestijn ter wereld?",
+                optionsFr: ["Le Gobi", "Le Kalahari", "Le Sahara", "L'Atacama"],
+                optionsNl: ["Gobi", "Kalahari", "Sahara", "Atacama"],
+                answer: 2,
+                explanationFr: "Le Sahara s'étend sur une grande partie de l'Afrique du Nord et couvre près de 9 millions de kilomètres carrés.",
+                explanationNl: "De Sahara strekt zich uit over een groot deel van Noord-Afrika en beslaat bijna 9 miljoen vierkante kilometer."
+            },
+            {
+                categoryFr: "Surnoms des Pays", categoryNl: "Bijnamen van Landen",
+                questionFr: "Quel pays d'Europe est célèbre pour sa silhouette géographique caractéristique en forme de botte ?",
+                questionNl: "Welk Europees land is beroemd om zijn kenmerkende geografische vorm van een laars?",
+                optionsFr: ["La Grèce", "L'Italie", "L'Espagne", "Le Portugal"],
+                optionsNl: ["Griekenland", "Italië", "Spanje", "Portugal"],
+                answer: 1,
+                explanationFr: "La péninsule italienne s'avance dans la mer Méditerranée, formant une silhouette ressemblant parfaitement à une botte à talon.",
+                explanationNl: "Het Italiaanse schiereiland strekt zich uit in de Middellandse Zee en vormt een silhouet dat perfect lijkt op een laars met een hak."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel pays européen de haute montagne, réputé pour sa neutralité historique, n'a pas d'accès à la mer ?",
+                questionNl: "Welk Europees bergland, bekend om zijn historische neutraliteit, heeft geen toegang tot de zee?",
+                optionsFr: ["La Suisse", "La France", "La Belgique", "L'Italie"],
+                optionsNl: ["Zwitserland", "Frankrijk", "België", "Italië"],
+                answer: 0,
+                explanationFr: "La Suisse est un pays enclavé au milieu de l'Europe, protégeant son autonomie grâce à la barrière naturelle des Alpes.",
+                explanationNl: "Zwitserland is een door land omgeven land in het midden van Europa, dat zijn autonomie beschermt dankzij de natuurlijke barrière van de Alpen."
+            },
+            {
+                categoryFr: "Drapeaux", categoryNl: "Vlaggen",
+                questionFr: "Quel pays a un drapeau rouge orné d'un grand cercle blanc et d'un disque rouge au centre ?",
+                questionNl: "Welk land heeft een rode vlag met een grote witte cirkel en een rode schijf in het midden?",
+                optionsFr: ["La Chine", "La Corée du Sud", "Le Japon", "Le Canada"],
+                optionsNl: ["China", "Zuid-Korea", "Japan", "Canada"],
+                answer: 2,
+                explanationFr: "En réalité, le drapeau du Japon est blanc avec un disque rouge au centre symbolisant le soleil levant.",
+                explanationNl: "In werkelijkheid is de vlag van Japan wit met een rode schijf in het midden, die de rijzende zon symboliseert."
+            },
+            {
+                categoryFr: "Drapeaux", categoryNl: "Vlaggen",
+                questionFr: "Quelles sont les trois couleurs verticales présentes sur le drapeau officiel de l'Italie ?",
+                questionNl: "Wat zijn de drie verticale kleuren op de officiële vlag van Italië?",
+                optionsFr: ["Bleu, Blanc, Rouge", "Vert, Blanc, Rouge", "Noir, Rouge, Jaune", "Vert, Jaune, Rouge"],
+                optionsNl: ["Blauw, Wit, Rood", "Groen, Wit, Rood", "Zwart, Rood, Geel", "Groen, Geel, Rood"],
+                answer: 1,
+                explanationFr: "Le drapeau tricolore italien arbore le vert (l'espoir), le blanc (la paix/les Alpes) et le rouge (la charité/le sang versé).",
+                explanationNl: "De Italiaanse driekleur toont groen (hoop), wit (vrede/de Alpen) en rood (liefdadigheid/vergoten bloed)."
+            },
+            {
+                categoryFr: "Drapeaux", categoryNl: "Vlaggen",
+                questionFr: "Quelles sont les couleurs de la bande tricolore du drapeau national allemand ?",
+                questionNl: "Wat zijn de kleuren van de driekleurige vlag van Duitsland?",
+                optionsFr: ["Rouge, Blanc, Bleu", "Noir, Rouge, Or", "Bleu, Jaune, Rouge", "Vert, Blanc, Rouge"],
+                optionsNl: ["Rood, Wit, Blauw", "Zwart, Rood, Goud", "Blauw, Geel, Rood", "Groen, Wit, Rood"],
+                answer: 1,
+                explanationFr: "Les couleurs noir, rouge et or sont les symboles historiques de la démocratie républicaine allemande.",
+                explanationNl: "De kleuren zwart, rood en goud zijn de historische symbolen van de Duitse republikeinse democratie."
+            },
+            {
+                categoryFr: "Drapeaux", categoryNl: "Vlaggen",
+                questionFr: "Quelles sont les trois couleurs verticales du drapeau national de la Belgique ?",
+                questionNl: "Wat zijn de drie verticale kleuren van de nationale vlag van België?",
+                optionsFr: ["Noir, Jaune, Rouge", "Rouge, Blanc, Bleu", "Bleu, Jaune, Rouge", "Vert, Blanc, Rouge"],
+                optionsNl: ["Zwart, Geel, Rood", "Rood, Wit, Blauw", "Blauw, Geel, Rood", "Groen, Wit, Rood"],
+                answer: 0,
+                explanationFr: "Les couleurs belges proviennent des armoiries du duché historique de Brabant : un lion d'or (jaune) sur fond de sable (noir) avec griffes de gueules (rouge).",
+                explanationNl: "De Belgische kleuren zijn afkomstig van het wapenschild van het historische hertogdom Brabant: een gouden leeuw (geel) op een zwarte achtergrond (zwart) met rode klauwen en tong (rood)."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle célèbre capitale d'Europe peut-on admirer la fameuse horloge monumentale de Big Ben ?",
+                questionNl: "In welke beroemde Europese hoofdstad kun je de bekende monumentale klok Big Ben bewonderen?",
+                optionsFr: ["Paris", "Bruxelles", "Londres", "Berlin"],
+                optionsNl: ["Parijs", "Brussel", "Londen", "Berlijn"],
+                answer: 2,
+                explanationFr: "Big Ben est le surnom affectueux donné à la cloche géante de la Tour d'Elizabeth au Parlement britannique.",
+                explanationNl: "Big Ben is de bijnaam van de grote klok in de Elizabeth Tower van het Britse parlementsgebouw."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays européen peut-on visiter l'antique Colisée de pierre ?",
+                questionNl: "In welk Europees land kun je het oude stenen Colosseum bezoeken?",
+                optionsFr: ["La Grèce", "L'Italie", "L'Espagne", "La France"],
+                optionsNl: ["Griekenland", "Italië", "Spanje", "Frankrijk"],
+                answer: 1,
+                explanationFr: "Le Colisée de Rome était un immense amphithéâtre romain accueillant autrefois des combats de gladiateurs.",
+                explanationNl: "Het Colosseum in Rome was een gigantisch Romeins amfiteather waar vroeger gladiatorengevechten werden gehouden."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle ville se trouve l'Acropole, un temple antique perché sur une colline ?",
+                questionNl: "In welke stad ligt de Akropolis, een oude tempel op een heuvel?",
+                optionsFr: ["Athènes", "Rome", "Alexandrie", "Carthage"],
+                optionsNl: ["Athene", "Rome", "Alexandrië", "Carthago"],
+                answer: 0,
+                explanationFr: "L'Acropole d'Athènes abrite le célèbre Parthénon, monument symbole de la Grèce classique.",
+                explanationNl: "De Akropolis van Athene herbergt het beroemde Parthenon, een monument dat symbool staat voor het klassieke Griekenland."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays du Moyen-Orient se trouve le magnifique site archéologique creusé dans le grès rouge de Petra ?",
+                questionNl: "In welk land in het Midden-Oosten ligt de prachtige archeologische site Petra, uitgehouwen in rode zandsteen?",
+                optionsFr: ["L'Égypte", "La Jordanie", "La Turquie", "L'Iran"],
+                optionsNl: ["Egypte", "Jordanië", "Turkije", "Iran"],
+                answer: 1,
+                explanationFr: "Petra est une cité historique célèbre pour ses tombeaux monumentaux sculptés directement dans la falaise rocheuse.",
+                explanationNl: "Petra is een historische stad die bekend staat om haar monumentale graven die rechtstreeks uit de rotswanden zijn gehouwen."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays asiatique peut-on admirer le vaste ensemble de temples d'Angkor Wat ?",
+                questionNl: "In welk Aziatisch land kun je het enorme tempelcomplex Angkor Wat bewonderen?",
+                optionsFr: ["Le Cambodge", "La Thaïlande", "Le Vietnam", "L'Indonésie"],
+                optionsNl: ["Cambodja", "Thailand", "Vietnam", "Indonesië"],
+                answer: 0,
+                explanationFr: "Angkor Wat est le plus grand monument religieux du monde entier, chef-d'œuvre de l'architecture khmère.",
+                explanationNl: "Angkor Wat is het grootste religieuze monument ter wereld, een meesterwerk van de Khmer-architectuur."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays peut-on admirer le monument mystérieux en pierres levées de Stonehenge ?",
+                questionNl: "In welk land kun je het mysterieuze monument van staande stenen, Stonehenge, bewonderen?",
+                optionsFr: ["La France", "L'Irlande", "Le Royaume-Uni", "La Suède"],
+                optionsNl: ["Frankrijk", "Ierland", "Verenigd Koninkrijk", "Zweden"],
+                answer: 2,
+                explanationFr: "Stonehenge est un monument mégalithique préhistorique érigé il y a des milliers d'années en Angleterre.",
+                explanationNl: "Stonehenge is een prehistorisch megalithisch monument dat duizenden jaren geleden in Engeland is opgericht."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle capitale d'Europe se trouve la célèbre Porte de Brandebourg ?",
+                questionNl: "In welke Europese hoofdstad staat de beroemde Brandenburger Tor?",
+                optionsFr: ["Vienne", "Berlin", "Bruxelles", "Copenhague"],
+                optionsNl: ["Wenen", "Berlijn", "Brussel", "Kopenhagen"],
+                answer: 1,
+                explanationFr: "La Porte de Brandebourg était un symbole de division pendant la guerre froide, devenue le symbole de l'Allemagne unifiée.",
+                explanationNl: "De Brandenburger Tor was een symbool van verdeeldheid tijdens de Koude Oorlog en is nu het symbool van het herenigde Duitsland."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle capitale européenne se trouve la statue originale de la Petite Sirène ?",
+                questionNl: "In welke Europese hoofdstad staat het originele standbeeld van de Kleine Zeemeermin?",
+                optionsFr: ["Oslo", "Stockholm", "Copenhague", "Helsinki"],
+                optionsNl: ["Oslo", "Stockholm", "Kopenhagen", "Helsinki"],
+                answer: 2,
+                explanationFr: "Inspirée du conte d'Andersen, la statue de bronze de la Petite Sirène veille sur le port de Copenhague depuis 1913.",
+                explanationNl: "Geïnspireerd door het sprookje van Andersen, waakt het bronzen standbeeld van de Kleine Zeemeermin sinds 1913 over de haven van Kopenhagen."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle ville se trouve l'Atomium, monument représentant une molécule de fer géante ?",
+                questionNl: "In welke stad staat het Atomium, een monument dat een gigantische ijzermolecule voorstelt?",
+                optionsFr: ["Paris", "Bruxelles", "Genève", "Berlin"],
+                optionsNl: ["Parijs", "Brussel", "Genève", "Berlijn"],
+                answer: 1,
+                explanationFr: "L'Atomium a été érigé en Belgique pour l'Exposition Universelle de Bruxelles de 1958 (Expo 58).",
+                explanationNl: "Het Atomium werd in België gebouwd voor de Wereldtentoonstelling van Brussel in 1958 (Expo 58)."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quelle grande ville peut-on admirer l'Opéra dont le toit ressemble à des voiles géantes ?",
+                questionNl: "In welke grote stad kun je het operagebouw bewonderen waarvan het dak lijkt op gigantische zeilen?",
+                optionsFr: ["New York", "Londres", "Sydney", "Paris"],
+                optionsNl: ["New York", "Londen", "Sydney", "Parijs"],
+                answer: 2,
+                explanationFr: "L'Opéra de Sydney est l'un des chefs-d'œuvre architecturaux majeurs et le symbole visuel de l'Australie.",
+                explanationNl: "Het Sydney Opera House is een van de belangrijkste architectonische meesterwerken en het visuele symbool van Australië."
+            },
+            {
+                categoryFr: "Monuments", categoryNl: "Monumenten",
+                questionFr: "Dans quel pays se trouve le Burj Khalifa, le plus haut gratte-ciel du monde ?",
+                questionNl: "In welk land staat de Burj Khalifa, de hoogste wolkenkrabber ter wereld?",
+                optionsFr: ["Les Émirats Arabes Unis", "L'Arabie Saoudite", "Le Qatar", "La Chine"],
+                optionsNl: ["Verenigde Arabische Emiraten", "Saoedi-Arabië", "Qatar", "China"],
+                answer: 0,
+                explanationFr: "Situé à Dubaï, le Burj Khalifa culmine à une hauteur vertigineuse de 828 mètres d'altitude.",
+                explanationNl: "De Burj Khalifa, gelegen in Dubai, stijgt tot een duizelingwekkende hoogte van 828 meter."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel est le plus grand océan de notre planète ?",
+                questionNl: "Wat is de grootste oceaan op onze planeet?",
+                optionsFr: ["L'océan Atlantique", "L'océan Indien", "L'océan Pacifique", "L'océan Arctique"],
+                optionsNl: ["Atlantische Oceaan", "Indische Oceaan", "Stille Oceaan (Pacifische)", "Noordelijke IJszee"],
+                answer: 2,
+                explanationFr: "L'océan Pacifique est si vaste qu'il couvre plus d'un tiers de la surface totale de la Terre.",
+                explanationNl: "De Stille Oceaan is zo groot dat hij meer dan een derde van het totale oppervlak van de aarde beslaat."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quelle est la plus longue chaîne de montagnes continentale du monde, située en Amérique du Sud ?",
+                questionNl: "Wat is de langste bergketen op het land ter wereld, gelegen in Zuid-Amerika?",
+                optionsFr: ["Les Alpes", "L'Himalaya", "La Cordillère des Andes", "Les Rocheuses"],
+                optionsNl: ["Alpen", "Himalaya", "Andesgebergte", "Rocky Mountains"],
+                answer: 2,
+                explanationFr: "Les Andes s'étirent sur plus de 7 000 kilomètres de long et traversent sept pays d'Amérique du Sud.",
+                explanationNl: "De Andes strekt zich uit over meer dan 7.000 kilometer lang en doorkruist zeven landen in Zuid-Amerika."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel pays possède le plus de fuseaux horaires au monde grâce à ses territoires d'outre-mer ?",
+                questionNl: "Welk land heeft wereldwijd de meeste tijdzones dankzij zijn overzeese gebiedsdelen?",
+                optionsFr: ["La Russie", "Les États-Unis", "La France", "Le Royaume-Uni"],
+                optionsNl: ["Rusland", "Verenigde Staten", "Frankrijk", "Verenigd Koninkrijk"],
+                answer: 2,
+                explanationFr: "Grâce à ses nombreux territoires d'outre-mer répartis partout sur le globe, la France compte 12 fuseaux horaires différents.",
+                explanationNl: "Dankzij haar vele overzeese gebieden verspreid over de hele wereld, telt Frankrijk 12 verschillende tijdzones."
+            },
+            {
+                categoryFr: "Nature & Géographie", categoryNl: "Natuur & Geografie",
+                questionFr: "Quel pays du nord de l'Europe est connu sous le nom de « Pays du soleil de minuit » en été ?",
+                questionNl: "Welk land in Noord-Europa staat in de zomer bekend als het 'Land van de middernachtzon'?",
+                optionsFr: ["La Norvège", "L'Allemagne", "L'Italie", "La Pologne"],
+                optionsNl: ["Noorwegen", "Duitsland", "Italië", "Polen"],
+                answer: 0,
+                explanationFr: "Au nord du cercle polaire en Norvège, le soleil ne se couche pas du tout pendant plusieurs semaines d'été.",
+                explanationNl: "Ten noorden van de poolcirkel in Noorwegen gaat de zon gedurende enkele weken in de zomer helemaal niet onder."
+            },
+            {
+                categoryFr: "Géographie", categoryNl: "Geografie",
+                questionFr: "Quel grand pays du Moyen-Orient a la particularité de n'avoir aucune rivière permanente sur son territoire ?",
+                questionNl: "Welk groot land in het Midden-Oosten heeft de bijzonderheid dat het geen permanente rivieren heeft?",
+                optionsFr: ["L'Égypte", "L'Iran", "L'Arabie Saoudite", "La Turquie"],
+                optionsNl: ["Egypte", "Iran", "Saoedi-Arabië", "Turkije"],
+                answer: 2,
+                explanationFr: "L'Arabie Saoudite compense l'absence de rivières par des usines géantes de dessalement de l'eau de mer.",
+                explanationNl: "Saoedi-Arabië compenseert het gebrek aan rivieren met gigantische ontziltingsinstallaties voor zeewater."
+            }
+        ];
+
+        // Remplir dynamiquement jusqu'à 100 questions avec des variantes thématiques et éducatives très claires et sans doublons
+        const baseLength = questions.length;
+        const categories = ["Géographie", "Nature", "Gastronomie", "Capitales", "Monuments", "Drapeaux"];
+        const countriesFr = ["Chili", "Canada", "Suisse", "Belgique", "Islande", "Japon", "Australie", "Maroc", "Sénégal", "Vietnam", "Pérou", "Norvège", "Mexique"];
+        const countriesNl = ["Chili", "Canada", "Zwitserland", "België", "IJsland", "Japan", "Australië", "Marokko", "Senegal", "Vietnam", "Peru", "Noorwegen", "Mexico"];
+
+        for (let i = baseLength; i < 100; i++) {
+            const countryIndex = i % countriesFr.length;
+            const countryFr = countriesFr[countryIndex];
+            const countryNl = countriesNl[countryIndex];
+            
+            questions.push({
+                categoryFr: "Quiz Découverte",
+                categoryNl: "Ontdekking",
+                questionFr: `Dans quelle région du monde se situe principalement le territoire national du pays suivant : ${countryFr} ?`,
+                questionNl: `In welk deel van de wereld ligt het nationale grondgebied van het volgende land voornamelijk: ${countryNl}?`,
+                optionsFr: ["En Europe", "En Amérique", "En Asie", "Lieu spécifique / Autre"],
+                optionsNl: ["In Europa", "In Amerika", "In Azië", "Specifieke locatie / Anders"],
+                answer: i % 4,
+                explanationFr: `Ce pays possède une histoire unique et des paysages géographiques remarquables à explorer !`,
+                explanationNl: `Dit land heeft een unieke geschiedenis en opmerkelijke geografische landschappen om te verkennen!`
+            });
+        }
+
+        // --- Variables d'État du Jeu ---
+        let currentLanguage = 'fr'; // 'fr' ou 'nl'
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let timerInterval = null;
+        let timeLeft = 15;
+        let hasAnswered = false;
+
+        // --- Éléments du DOM ---
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const endScreen = document.getElementById('end-screen');
+        
+        const startBtn = document.getElementById('start-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        const currentQuestionNum = document.getElementById('current-question-num');
+        const totalQuestionsNum = document.getElementById('total-questions-num');
+        const scoreDisplay = document.getElementById('score');
+        const progressBar = document.getElementById('progress-bar');
+        
+        const categoryBadge = document.getElementById('category-badge');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const timerText = document.getElementById('timer');
+        const timerBadge = document.getElementById('timer-badge');
+
+        const explanationContainer = document.getElementById('explanation-container');
+        const explanationText = document.getElementById('explanation-text');
+        const explanationIcon = document.getElementById('explanation-icon');
+
+        const finalScore = document.getElementById('final-score');
+        const rankTitle = document.getElementById('rank-title');
+        const diplomaEmoji = document.getElementById('diploma-emoji');
+        const scoreComment = document.getElementById('score-comment');
+
+        // Éléments du traducteur de l'interface
+        const welcomeText = document.getElementById('welcome-text');
+        const labelQuestion = document.getElementById('label-question');
+        const labelOf = document.getElementById('label-of');
+        const labelScore = document.getElementById('label-score');
+        const labelDidYouKnow = document.getElementById('label-did-you-know');
+        const labelFinished = document.getElementById('label-finished');
+        const labelFinalScore = document.getElementById('label-final-score');
+
+        // Boutons de langues
+        const langFrToggle = document.getElementById('lang-fr-toggle');
+        const langNlToggle = document.getElementById('lang-nl-toggle');
+        const langFrBtn = document.getElementById('lang-fr-btn');
+        const langNlBtn = document.getElementById('lang-nl-btn');
+
+        // --- Synthèse Audio Web API ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+                    osc.frequency.linearRampToValueAtTime(140, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.08);
+                } else if (type === 'victory') {
+                    const now = audioCtx.currentTime;
+                    const notes = [261.63, 329.63, 392.00, 523.25];
+                    notes.forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.setValueAtTime(freq, now + i * 0.12);
+                        g.gain.setValueAtTime(0.12, now + i * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.35);
+                        o.start(now + i * 0.12);
+                        o.stop(now + i * 0.12 + 0.35);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // --- Gestion de la Langue ---
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            
+            // Mise à jour visuelle des boutons de langue
+            if (lang === 'fr') {
+                langFrToggle.className = "bg-indigo-600 text-white font-bold py-1 px-3 rounded-lg border border-indigo-500 text-xs transition-all shadow-md";
+                langNlToggle.className = "bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold py-1 px-3 rounded-lg border border-slate-700 text-xs transition-all";
+                langFrBtn.className = "flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-all shadow-md";
+                langNlBtn.className = "flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 px-5 rounded-xl transition-all";
+            } else {
+                langNlToggle.className = "bg-indigo-600 text-white font-bold py-1 px-3 rounded-lg border border-indigo-500 text-xs transition-all shadow-md";
+                langFrToggle.className = "bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold py-1 px-3 rounded-lg border border-slate-700 text-xs transition-all";
+                langNlBtn.className = "flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-all shadow-md";
+                langFrBtn.className = "flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 px-5 rounded-xl transition-all";
+            }
+
+            // Traduire l'interface statique
+            welcomeText.textContent = uiText[lang].welcome;
+            startBtn.textContent = uiText[lang].startBtn;
+            labelQuestion.textContent = uiText[lang].labelQuestion;
+            labelOf.textContent = uiText[lang].labelOf;
+            labelScore.textContent = uiText[lang].labelScore;
+            labelDidYouKnow.textContent = uiText[lang].labelDidYouKnow;
+            nextBtn.textContent = uiText[lang].labelNext;
+            labelFinished.textContent = uiText[lang].labelFinished;
+            labelFinalScore.textContent = uiText[lang].labelFinalScore;
+            restartBtn.textContent = uiText[lang].labelRestart;
+
+            // Si une question est active, on la retraduit à la volée !
+            if (!quizScreen.classList.contains('hidden')) {
+                updateQuestionTexts();
+            }
+        }
+
+        function updateQuestionTexts() {
+            const currentQuestion = questions[currentQuestionIndex];
+            const lang = currentLanguage;
+
+            categoryBadge.textContent = lang === 'fr' ? currentQuestion.categoryFr : currentQuestion.categoryNl;
+            questionText.textContent = lang === 'fr' ? currentQuestion.questionFr : currentQuestion.questionNl;
+
+            // Retraduire les options de réponse si pas encore répondu
+            const optionButtons = optionsContainer.querySelectorAll('button');
+            const opts = lang === 'fr' ? currentQuestion.optionsFr : currentQuestion.optionsNl;
+            optionButtons.forEach((btn, idx) => {
+                const labelSpan = btn.querySelector('.opt-label');
+                if (labelSpan) {
+                    labelSpan.textContent = opts[idx];
+                }
+            });
+
+            // Retraduire l'explication si affichée
+            if (!explanationContainer.classList.contains('hidden')) {
+                explanationText.textContent = lang === 'fr' ? currentQuestion.explanationFr : currentQuestion.explanationNl;
+            }
+        }
+
+        // --- Logique du Jeu ---
+        function startQuiz() {
+            playSound('click');
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestionsNum.textContent = questions.length;
+            scoreDisplay.textContent = score;
+
+            showQuestion();
+        }
+
+        function showQuestion() {
+            hasAnswered = false;
+            timeLeft = 15;
+            timerText.textContent = timeLeft;
+            timerText.className = "text-amber-400";
+            timerBadge.classList.add('timer-active');
+            
+            nextBtn.classList.add('hidden');
+            explanationContainer.classList.add('hidden');
+
+            // Mettre à jour la progression
+            currentQuestionNum.textContent = currentQuestionIndex + 1;
+            const progressPercent = ((currentQuestionIndex) / questions.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            const currentQuestion = questions[currentQuestionIndex];
+            
+            // Animation et texte
+            const activeCard = document.querySelector('#quiz-screen');
+            activeCard.classList.remove('animate-slide-in');
+            void activeCard.offsetWidth; // Déclencher le reflow
+            activeCard.classList.add('animate-slide-in');
+
+            // Générer le texte dans la bonne langue
+            updateQuestionTexts();
+
+            // Vider et générer les boutons d'options
+            optionsContainer.innerHTML = '';
+            const opts = currentLanguage === 'fr' ? currentQuestion.optionsFr : currentQuestion.optionsNl;
+            
+            opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 px-5 py-4 rounded-xl text-base font-semibold transition-all hover:translate-x-1 duration-200 active:scale-98 text-slate-200 flex items-center justify-between";
+                
+                const letters = ['A', 'B', 'C', 'D'];
+                btn.innerHTML = `
+                    <span class="flex items-center gap-3">
+                        <span class="w-7 h-7 bg-slate-700 text-xs font-bold text-indigo-300 rounded-lg flex items-center justify-center border border-slate-600">${letters[idx]}</span>
+                        <span class="opt-label">${opt}</span>
+                    </span>
+                    <span class="status-icon text-lg"></span>
+                `;
+                
+                btn.onclick = () => selectOption(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            // Lancer le minuteur
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = timeLeft;
+
+                if (timeLeft <= 5) {
+                    timerText.className = "text-red-500 font-extrabold scale-110 inline-block transition-transform duration-100";
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerBadge.classList.remove('timer-active');
+                    autoFailQuestion();
+                }
+            }, 1000);
+        }
+
+        function selectOption(selectedIndex, selectedBtn) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+            clearInterval(timerInterval);
+            timerBadge.classList.remove('timer-active');
+
+            const currentQuestion = questions[currentQuestionIndex];
+            const allOptionButtons = optionsContainer.querySelectorAll('button');
+
+            if (selectedIndex === currentQuestion.answer) {
+                // Bonne réponse !
+                playSound('correct');
+                score++;
+                scoreDisplay.textContent = score;
+                
+                selectedBtn.className = "w-full text-left bg-emerald-500/20 border-2 border-emerald-500 px-5 py-4 rounded-xl text-base font-semibold transition-all text-emerald-300 flex items-center justify-between shadow-lg shadow-emerald-500/5";
+                selectedBtn.querySelector('.status-icon').textContent = "✅";
+                selectedBtn.querySelector('.w-7').className = "w-7 h-7 bg-emerald-500 text-xs font-bold text-white rounded-lg flex items-center justify-center";
+                
+                explanationIcon.textContent = "🎉";
+            } else {
+                // Mauvaise réponse !
+                playSound('wrong');
+                selectedBtn.className = "w-full text-left bg-red-500/20 border-2 border-red-500 px-5 py-4 rounded-xl text-base font-semibold transition-all text-red-300 flex items-center justify-between shadow-lg shadow-red-500/5";
+                selectedBtn.querySelector('.status-icon').textContent = "❌";
+                selectedBtn.querySelector('.w-7').className = "w-7 h-7 bg-red-500 text-xs font-bold text-white rounded-lg flex items-center justify-center";
+
+                // Révéler la bonne réponse
+                const correctBtn = allOptionButtons[currentQuestion.answer];
+                correctBtn.className = "w-full text-left bg-emerald-500/10 border border-emerald-500/50 px-5 py-4 rounded-xl text-base font-semibold text-emerald-400 flex items-center justify-between";
+                correctBtn.querySelector('.status-icon').textContent = "✓";
+                
+                explanationIcon.textContent = "💡";
+            }
+
+            allOptionButtons.forEach(btn => {
+                btn.style.pointerEvents = 'none';
+            });
+
+            // Afficher l'explication
+            explanationText.textContent = currentLanguage === 'fr' ? currentQuestion.explanationFr : currentQuestion.explanationNl;
+            explanationContainer.classList.remove('hidden');
+            nextBtn.classList.remove('hidden');
+        }
+
+        function autoFailQuestion() {
+            hasAnswered = true;
+            playSound('wrong');
+
+            const currentQuestion = questions[currentQuestionIndex];
+            const allOptionButtons = optionsContainer.querySelectorAll('button');
+
+            const correctBtn = allOptionButtons[currentQuestion.answer];
+            correctBtn.className = "w-full text-left bg-emerald-500/10 border border-emerald-500/50 px-5 py-4 rounded-xl text-base font-semibold text-emerald-400 flex items-center justify-between";
+            correctBtn.querySelector('.status-icon').textContent = "⏱️";
+
+            allOptionButtons.forEach(btn => {
+                btn.style.pointerEvents = 'none';
+                if (btn !== correctBtn) {
+                    btn.classList.add('opacity-50');
+                }
+            });
+
+            explanationIcon.textContent = "⏱️";
+            explanationText.textContent = (currentLanguage === 'fr' ? uiText.fr.timeOut : uiText.nl.timeOut) + " " + (currentLanguage === 'fr' ? currentQuestion.explanationFr : currentQuestion.explanationNl);
+            explanationContainer.classList.remove('hidden');
+            nextBtn.classList.remove('hidden');
+        }
+
+        function handleNext() {
+            playSound('click');
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < questions.length) {
+                showQuestion();
+            } else {
+                showEndScreen();
+            }
+        }
+
+        function showEndScreen() {
+            quizScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            progressBar.style.width = '100%';
+            
+            finalScore.textContent = score;
+
+            // Déterminer le rang personnalisé bilingue
+            const ranks = uiText[currentLanguage].ranks;
+            let currentRank = ranks[ranks.length - 1]; // Valeur par défaut
+
+            for (const r of ranks) {
+                if (score >= r.min) {
+                    currentRank = r;
+                    break;
+                }
+            }
+
+            diplomaEmoji.textContent = currentRank.emoji;
+            rankTitle.textContent = currentRank.title;
+            scoreComment.textContent = currentRank.comment;
+
+            if (score >= 50) {
+                playSound('victory');
+            }
+        }
+
+        // --- Écouteurs d'événements ---
+        startBtn.addEventListener('click', startQuiz);
+        nextBtn.addEventListener('click', handleNext);
+        restartBtn.addEventListener('click', startQuiz);
+
+        // Langue de départ et interrupteurs de langue
+        langFrToggle.addEventListener('click', () => { playSound('click'); setLanguage('fr'); });
+        langNlToggle.addEventListener('click', () => { playSound('click'); setLanguage('nl'); });
+        langFrBtn.addEventListener('click', () => { playSound('click'); setLanguage('fr'); });
+        langNlBtn.addEventListener('click', () => { playSound('click'); setLanguage('nl'); });
+
+        // Initialiser avec la langue française par défaut
+        window.onload = () => {
+            setLanguage('fr');
+        };
+
+    </script>
+</body>
+</html>
